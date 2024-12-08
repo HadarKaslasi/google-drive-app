@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Save to Google Drive</title>
+    <script src="https://apis.google.com/js/api.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+</head>
+<body>
+    <input type="text" id="inputString" placeholder="Enter a string">
+    <button onclick="saveToGoogleDrive()">Save to Google Drive</button>
+
+    <script>
+    function saveToGoogleDrive() {
+        gapi.load('client:auth2', initClient);
+    }
+
+    function initClient() {
+        gapi.client.init({
+            apiKey: 'YOUR_API_KEY',
+            clientId: 'YOUR_CLIENT_ID',
+            discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"],
+            scope: 'https://www.googleapis.com/auth/drive.file'
+        }).then(function () {
+            gapi.auth2.getAuthInstance().signIn().then(function() {
+                createAndUploadFile();
+            });
+        });
+    }
+
+    function createAndUploadFile() {
+        var inputString = document.getElementById('inputString').value;
+        var workbook = XLSX.utils.book_new();
+        var worksheet = XLSX.utils.aoa_to_sheet([[inputString]]);
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
+        var excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+
+        var file = new Blob([excelBuffer], {type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+        var metadata = {
+            'name': 'MyExcelFile.xlsx',
+            'mimeType': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        };
+
+        var form = new FormData();
+        form.append('metadata', new Blob([JSON.stringify(metadata)], {type: 'application/json'}));
+        form.append('file', file);
+
+        fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+            method: 'POST',
+            headers: new Headers({'Authorization': 'Bearer ' + gapi.auth.getToken().access_token}),
+            body: form
+        }).then((res) => {
+            console.log('File uploaded successfully');
+        });
+    }
+    </script>
+</body>
+</html>
